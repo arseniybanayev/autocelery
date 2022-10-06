@@ -69,7 +69,26 @@ def load_code_from_redis(job_id: str, celery_worker_hostname: str):
 
             # Uncompress and extract the code directory
             with tarfile.open(fileobj=f, mode='r:gz') as tar:
-                tar.extractall(path_to_code)
+                def is_within_directory(directory, target):
+                    
+                    abs_directory = os.path.abspath(directory)
+                    abs_target = os.path.abspath(target)
+                
+                    prefix = os.path.commonprefix([abs_directory, abs_target])
+                    
+                    return prefix == abs_directory
+                
+                def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
+                
+                    for member in tar.getmembers():
+                        member_path = os.path.join(path, member.name)
+                        if not is_within_directory(path, member_path):
+                            raise Exception("Attempted Path Traversal in Tar File")
+                
+                    tar.extractall(path, members, numeric_owner=numeric_owner) 
+                    
+                
+                safe_extract(tar, path_to_code)
     
     print(f'Downloaded app code for job {job_id} to {path_to_code}')
     return path_to_code
